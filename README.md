@@ -62,7 +62,7 @@
 | [SDK 与库的架构](docs/sdk-library-architecture/README.md) | 包与模块、API 控制流、插件扩展、二进制兼容、主流库映射 |
 | [服务端架构](docs/server-architecture/README.md) | 系统拆分、业务组织、通信执行、数据一致性、云原生与韧性 |
 | [应用端架构](docs/application-architecture/README.md) | MVC/MVVM/MVI、模块组织、Web 渲染、移动与桌面跨平台 |
-| [Web 经典架构](docs/web-architecture/README.md) | MPA/SPA/SSR、Three.js、Babylon.js、Cornerstone3D、VTK.js、VS Code、DeepSeek Harness |
+| [Web 经典架构](docs/web-architecture/README.md) | MPA/SPA/SSR、React、Vue、Svelte、Three.js、Babylon.js、Cornerstone3D、VTK.js、VS Code、DeepSeek Harness |
 
 ## 推荐阅读路径
 

@@ -9,6 +9,10 @@
 ## 目录
 
 - [经典 Web 运行架构](#经典-web-运行架构)
+- [前端框架架构对比](#前端框架架构对比)
+- [React 架构](#react-架构)
+- [Vue 架构](#vue-架构)
+- [Svelte 架构](#svelte-架构)
 - [Web 可视化通用分层](#web-可视化通用分层)
 - [代表技术对比](#代表技术对比)
 - [Three.js 架构](#threejs-架构)
@@ -34,6 +38,174 @@
 | Web Worker Pipeline | 把解析、计算或解码放入 Worker | 大数据、影像、AI、复杂几何 | 数据复制、调度和错误传播 |
 | WebAssembly Core | JavaScript 管理 UI，WASM 运行计算核心 | 编解码、科学计算、模型推理 | ABI、内存交换和调试 |
 | Plugin-Driven Web App | Shell 提供事件、服务和扩展点，功能由插件装配 | IDE、Agent、低代码和平台型应用 | 插件安全、生命周期和版本兼容 |
+
+## 前端框架架构对比
+
+React、Vue 和 Svelte 都使用组件组合 UI，但更新机制、编译器职责和全栈边界不同。
+
+| 维度 | React | Vue | Svelte |
+|------|-------|-----|--------|
+| 定位 | UI 库和组件架构 | 渐进式前端框架 | 编译器优先的 UI 框架 |
+| 组件格式 | JSX/TSX 函数组件 | Single-File Component 或渲染函数 | `.svelte` 单文件组件 |
+| 核心响应方式 | 状态更新触发组件重新执行 | Proxy/ref 依赖跟踪触发渲染 Effect | Runes 和编译结果驱动细粒度更新 |
+| 渲染模型 | Fiber Reconciler 比较元素树，Renderer 提交宿主变更 | 编译优化的 Virtual DOM Patch | 编译为直接 DOM 创建和更新代码 |
+| 数据流 | Props 向下，事件和状态更新向上 | Props 向下、Events 向上，可选双向 `v-model` | Props、回调和可绑定状态，Runes 显式表达依赖 |
+| 逻辑复用 | Hooks、Context、自定义 Hook | Composition API、Composable、Provide/Inject | Runes、`.svelte.js/.ts` 模块、Context、Store |
+| 官方全栈边界 | 依赖 Next.js、React Router 等框架实现 | 依赖 Nuxt 等框架实现 | SvelteKit 提供官方应用框架 |
+| 服务端能力 | SSR、Streaming、Server Components/Functions | SSR、Streaming/Hydration，常由 Nuxt 编排 | SvelteKit SSR、Prerender、SPA、Server Load/Actions |
+| 主要优势 | 生态大、Renderer 可移植、复杂交互能力强 | 渐进采用、模板易读、响应式直接 | 编译优化、运行时较轻、细粒度 DOM 更新 |
+| 主要代价 | 状态边界、Effect 和性能优化需要纪律 | Proxy/ref 语义、模板编译和响应式边界 | 编译语义、生态规模和 Svelte 版本迁移 |
+
+## React 架构
+
+React 将 UI 表达为组件树。组件根据 Props 和 State 返回元素描述，Reconciler 计算变化，具体 Renderer 把变化提交到 DOM、Native 或其他宿主环境。
+
+### 核心分层
+
+| 层次 | 责任 |
+|------|------|
+| Component / JSX | 用纯函数和 JSX 描述给定状态下的 UI |
+| React Core | 定义元素、组件、Context、Hooks 和 Suspense 等公共模型 |
+| Fiber Reconciler | 保存可中断的工作单元，协调优先级、重新渲染和树差异 |
+| Scheduler | 调度不同优先级的渲染工作，支持并发响应能力 |
+| Renderer | 将统一协调结果提交到具体宿主；Web 使用 React DOM |
+| Host Environment | DOM、Native View 或自定义渲染目标 |
+| Framework Layer | 路由、数据获取、构建、SSR、RSC 和部署由应用框架整合 |
+
+### 状态与数据流
+
+| 机制 | 责任 | 注意点 |
+|------|------|--------|
+| Props | 父组件向子组件传递只读输入 | 避免把可计算值重复保存为 State |
+| Local State | 保存组件需要记忆的最小可变状态 | 状态由明确组件拥有，必要时向上提升 |
+| Context | 向子树提供跨层共享值 | 高频变化会扩大订阅范围 |
+| Reducer | 把复杂事件集中转换为新状态 | 适合状态机式交互和可测试更新 |
+| Hooks | 在函数组件中组合状态、生命周期和外部系统同步逻辑 | 必须遵守调用顺序和纯渲染规则 |
+| External Store | 把跨页面或服务端缓存状态放入独立 Store | 区分客户端 UI 状态与服务端数据缓存 |
+
+### 客户端执行流
+
+`用户事件 → setState/dispatch → 调度更新 → 执行受影响组件 → Fiber Reconcile → Commit DOM → Effect`
+
+React 的单向数据流不是“所有状态放在一个 Store”，而是每份状态有明确所有者：状态和 Props 向下流动，事件通过回调触发上层更新。
+
+### Server Components 架构
+
+| 组件类型 | 运行位置 | 能力与限制 |
+|----------|----------|------------|
+| Server Component | 构建时或服务端 | 可直接访问服务端数据，不进入客户端 Bundle，不能使用交互 State |
+| Client Component | 浏览器，也可参与服务端预渲染 | 使用 State、Effect 和浏览器 API，通过 `"use client"` 建立边界 |
+| Server Function | 服务端 | 由客户端调用的服务端函数，以 `"use server"` 标记并序列化参数 |
+| Suspense Boundary | 服务端与客户端 | 协调异步渲染、Streaming 和渐进展示 |
+
+典型全栈流：
+
+`Request → Server Component 读取数据 → RSC Payload + SSR HTML → Streaming → Client Component Hydration → 交互更新`
+
+React 本身不规定目录、路由和数据层；大型应用通常使用 Feature-First 目录，并由 Next.js 或 React Router 等框架定义服务端与客户端边界。
+
+## Vue 架构
+
+Vue 采用“编译器 + 运行时响应式 + Virtual DOM”的混合架构。模板编译器把静态信息和动态绑定编码进 Render Function，运行时响应系统精确确定哪些组件需要重新执行，再由带编译提示的 Virtual DOM 完成 Patch。
+
+### 核心分层
+
+| 层次 | 责任 |
+|------|------|
+| Single-File Component | 在 `.vue` 文件中组织 Template、Script 和 Scoped Style |
+| Compiler | 把 Template 编译为 Render Function，标记静态节点、Patch Flag 和更新块 |
+| Reactivity | 通过 `reactive` Proxy、`ref` getter/setter、Effect、Computed 和 Watch 跟踪依赖 |
+| Runtime Core | 管理组件实例、生命周期、VNode、调度器和跨平台渲染协议 |
+| Runtime DOM | 把 Runtime Core 的宿主操作映射到浏览器 DOM 和事件系统 |
+| Ecosystem | Vue Router 负责路由，Pinia 负责应用 Store，Nuxt 负责全栈和 SSR |
+
+### 响应式模型
+
+| 原语 | 作用 |
+|------|------|
+| `reactive()` | 用 Proxy 创建对象级深层响应状态 |
+| `ref()` | 用带 `.value` 的容器保存原始值或对象引用 |
+| `computed()` | 缓存由响应依赖派生的只读或可写值 |
+| `watch()` | 显式监听来源，在变化时执行副作用 |
+| `watchEffect()` | 自动收集同步执行期间读取的依赖 |
+| Component Render Effect | 收集模板或 Render Function 读取的响应依赖并驱动组件更新 |
+
+### 渲染执行流
+
+`SFC Template → Compiler → Render Function → VNode/Block Tree → Renderer → DOM`
+
+更新流程：
+
+`用户事件 → 修改 reactive/ref → Proxy trigger → Scheduler 批处理 → Component Render Effect → VNode Patch → DOM`
+
+Vue 的响应式依赖主要在运行时跟踪，但模板编译器会生成 Patch Flag、静态提升和 Block Tree，减少 Virtual DOM 更新时需要遍历的范围。
+
+### 应用组织
+
+| 规模 | 推荐结构 |
+|------|----------|
+| 渐进增强 | 在现有 HTML 页面挂载局部 Vue Application |
+| 中型 SPA | SFC + Composition API + Vue Router + Pinia + Feature 模块 |
+| 大型应用 | Feature-First + Composable + Service/Repository + Pinia Store |
+| 全栈 / SSR | Nuxt 负责文件路由、服务端数据、SSR、Hydration 和部署适配 |
+
+Options API 和 Composition API 是两种组件逻辑组织方式，底层共享同一响应式和渲染系统。复杂业务更适合用 Composition API 按功能关注点提取 Composable。
+
+## Svelte 架构
+
+Svelte 把大量框架工作放在构建阶段。编译器分析 `.svelte` 组件和 Runes，将声明式模板转换为直接创建、更新和销毁 DOM 的 JavaScript；运行时只保留响应式图、生命周期和必要的共享能力。
+
+### 核心分层
+
+| 层次 | 责任 |
+|------|------|
+| `.svelte` Component | 组合 Script、Template 和 Scoped Style |
+| Svelte Compiler | 分析模板与 Runes，生成 DOM 操作、CSS 和服务端渲染代码 |
+| Runes Reactivity | 用 `$state`、`$derived`、`$effect`、`$props` 显式表达响应关系 |
+| Generated Component | 执行编译生成的细粒度 DOM 创建和更新逻辑 |
+| Runtime | 提供 Effect Graph、Context、Lifecycle、Store 兼容和 Hydration 支持 |
+| SvelteKit | 提供文件路由、Load、Form Actions、Server Routes、SSR 和部署 Adapter |
+
+### Runes 响应模型
+
+| Rune | 责任 |
+|------|------|
+| `$state` | 创建响应状态；对象和数组可形成深层 Proxy |
+| `$derived` | 声明从其他状态计算出的派生值 |
+| `$effect` | 在浏览器中响应依赖变化执行副作用 |
+| `$props` | 声明组件从父级接收的输入 |
+| `$bindable` | 明确允许父子间绑定的 Prop |
+| `$inspect` | 在开发阶段观察响应状态变化 |
+
+### 编译与更新流
+
+构建流程：
+
+`.svelte Source → Parser/Compiler → Dependency Analysis → Generated JS/CSS → Bundle`
+
+运行流程：
+
+`用户事件 → 更新 $state → 标记依赖节点 → 更新对应 DOM 表达式 → 运行相关 $effect`
+
+Svelte 不依赖通用 Virtual DOM Diff；编译器已知道哪些 DOM 节点依赖哪些值，因此可以生成更直接的更新代码。
+
+### SvelteKit 全栈架构
+
+| 组成 | 责任 |
+|------|------|
+| `+page.svelte` / `+layout.svelte` | 页面和嵌套布局 UI |
+| Universal `load` | 可在服务端和浏览器运行的数据加载 |
+| `+page.server` / `+layout.server` | 仅服务端的数据访问和 Form Actions |
+| `+server` | HTTP API Endpoint |
+| Hooks | 请求、认证和错误处理等横切逻辑 |
+| Page Options | 按路由选择 SSR、CSR、Prerender 策略 |
+| Adapter | 将构建产物部署到 Node、Serverless、Edge 或 Static Host |
+
+典型请求流：
+
+`Request → Server Hook → Route Match → Server/Universal Load → SSR HTML → Hydration → Client Navigation`
+
+SvelteKit 允许同一应用按页面混合 SSR、静态预渲染和客户端渲染，但服务端模块与浏览器模块必须保持明确边界，防止密钥和仅服务端依赖进入客户端 Bundle。
 
 ## Web 可视化通用分层
 
@@ -307,6 +479,9 @@ DeepSeek Harness 是开源 Agent Harness，官方描述为“一切皆插件”�
 
 | 需求 | 首选 | 原因 |
 |------|------|------|
+| 最大生态和跨端组件能力 | React | 组件与 Renderer 架构成熟，全栈框架和第三方生态丰富 |
+| 渐进接入和模板驱动业务应用 | Vue | 可局部挂载，响应式直接，官方 Router/Store 组合清晰 |
+| 编译器优先和较轻运行时 | Svelte | 生成细粒度 DOM 更新，SvelteKit 提供完整应用骨架 |
 | 自由构建通用 3D 交互 | Three.js | 抽象精简，应用结构自主度高 |
 | Web 游戏、XR、完整引擎能力 | Babylon.js | 内置渲染、物理、GUI、音频和工具链 |
 | 临床 DICOM 查看和标注 | Cornerstone3D | 医学影像 Loader、Viewport、Metadata 和 Tools 完整 |
@@ -318,6 +493,9 @@ DeepSeek Harness 是开源 Agent Harness，官方描述为“一切皆插件”�
 
 | 场景 | 推荐组合 |
 |------|----------|
+| 大型 React 产品 | Feature-First + React Framework + Server Components/SSR + Query Cache + Design System |
+| 企业 Vue 应用 | SFC + Composition API + Vue Router + Pinia + Feature 模块 |
+| Svelte 全栈应用 | SvelteKit + Runes + Server Load/Actions + 按路由 SSR/Prerender |
 | 数字孪生平台 | React/Vue Shell + Three.js/Babylon.js + Worker + BFF + 流式资源 |
 | 医学诊断工作站 | Cornerstone3D + DICOMweb + UDF Store + Worker 解码 |
 | 医学科研可视化 | Cornerstone3D 管理临床影像 + VTK.js 处理网格/体数据 |
@@ -328,6 +506,15 @@ DeepSeek Harness 是开源 Agent Harness，官方描述为“一切皆插件”�
 
 ## 参考资料
 
+- [React: Thinking in React](https://react.dev/learn/thinking-in-react)
+- [React Server Components](https://react.dev/reference/rsc/server-components)
+- [React Reference Architecture](https://react.dev/reference/react)
+- [Vue Reactivity in Depth](https://vuejs.org/guide/extras/reactivity-in-depth.html)
+- [Vue Rendering Mechanism](https://vuejs.org/guide/extras/rendering-mechanism.html)
+- [Vue Server-Side Rendering](https://vuejs.org/guide/scaling-up/ssr.html)
+- [Svelte Overview](https://svelte.dev/docs/svelte/overview)
+- [Svelte Runes](https://svelte.dev/docs/svelte/what-are-runes)
+- [SvelteKit Introduction](https://svelte.dev/docs/kit/introduction)
 - [Three.js Fundamentals](https://threejs.org/manual/en/fundamentals.html)
 - [Three.js Object3D](https://threejs.org/docs/pages/Object3D.html)
 - [Babylon.js Engine Specifications](https://www.babylonjs.com/specifications/)
